@@ -12,7 +12,6 @@ import { SidebarGroupContent, SidebarMenu, SidebarMenuItem } from "ui/sidebar";
 import { SidebarGroup } from "ui/sidebar";
 import { ThreadDropdown } from "../thread-dropdown";
 import { MoreHorizontal, Trash } from "lucide-react";
-import { ChatThread } from "app-types/chat";
 import { useMounted } from "@/hooks/use-mounted";
 import { appStore } from "@/app/store";
 import { Button } from "ui/button";
@@ -22,24 +21,36 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "ui/dropdown-menu";
-import { deleteAllThreadsAction } from "@/app/api/chat/actions";
+import {
+  deleteThreadsAction,
+  selectThreadListByUserIdAction,
+} from "@/app/api/chat/actions";
 import { toast } from "sonner";
 import { useShallow } from "zustand/shallow";
 import { useRouter } from "next/navigation";
-import { mutate } from "swr";
+import useSWR, { mutate } from "swr";
+import { handleErrorWithToast } from "ui/shared-toast";
+import { useEffect } from "react";
+import { signOut } from "next-auth/react";
 
-export function AppSidebarThreads({
-  isLoading,
-  threadList,
-}: { isLoading: boolean; threadList: ChatThread[] }) {
+export function AppSidebarThreads() {
   const mounted = useMounted();
   const router = useRouter();
   const [storeMutate, currentThreadId] = appStore(
     useShallow((state) => [state.mutate, state.currentThreadId]),
   );
 
+  const {
+    data: threadList,
+    isLoading,
+    error,
+  } = useSWR("threads", selectThreadListByUserIdAction, {
+    onError: handleErrorWithToast,
+    fallbackData: [],
+    onSuccess: (data) => storeMutate({ threadList: data }),
+  });
   const handleDeleteAllThreads = async () => {
-    await toast.promise(deleteAllThreadsAction(), {
+    await toast.promise(deleteThreadsAction(), {
       loading: "Deleting all threads...",
       success: () => {
         storeMutate({ threadList: [] });
@@ -50,10 +61,17 @@ export function AppSidebarThreads({
       error: "Failed to delete all threads",
     });
   };
+  useEffect(() => {
+    if (error) {
+      signOut({
+        redirectTo: "/login",
+      });
+    }
+  }, [error]);
 
   return (
     <SidebarGroup>
-      <SidebarGroupContent className="group-data-[collapsible=icon]:hidden group">
+      <SidebarGroupContent className="group-data-[collapsible=icon]:hidden group/threads">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarGroupLabel className="">
@@ -65,7 +83,7 @@ export function AppSidebarThreads({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="opacity-0 group-hover/threads:opacity-100 transition-opacity"
                   >
                     <MoreHorizontal />
                   </Button>
@@ -109,6 +127,7 @@ export function AppSidebarThreads({
                     </SidebarMenuButton>
                     <SidebarMenuAction className="opacity-0 group-hover/thread:opacity-100">
                       <ThreadDropdown
+                        side="right"
                         threadId={thread.id}
                         beforeTitle={thread.title}
                       >

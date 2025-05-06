@@ -7,7 +7,7 @@ import {
 } from "@/app/api/mcp/actions";
 import { appStore } from "@/app/store";
 import { MCPServerInfo } from "app-types/mcp";
-import { ChevronRight, RotateCw, Loader2 } from "lucide-react";
+import { ChevronRight, RotateCw, Loader } from "lucide-react";
 import { PropsWithChildren, useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import { Card, CardContent } from "ui/card";
@@ -24,17 +24,19 @@ import { Separator } from "ui/separator";
 
 import { cn } from "lib/utils";
 import { MCPIcon } from "ui/mcp-icon";
+import { RadioGroup, RadioGroupItem } from "ui/radio-group";
+import { Label } from "ui/label";
 
-type McpListComboProps = {
+type McpToolChoiceSettingsProps = {
   align?: "start" | "end";
 };
 
-export const McpListCombo = ({
+export const McpToolChoiceSettings = ({
   children,
   align = "end",
-}: PropsWithChildren<McpListComboProps>) => {
-  const [appStoreMutate, activeTool] = appStore(
-    useShallow((state) => [state.mutate, state.activeTool]),
+}: PropsWithChildren<McpToolChoiceSettingsProps>) => {
+  const [appStoreMutate, toolChoice] = appStore(
+    useShallow((state) => [state.mutate, state.toolChoice]),
   );
 
   const [open, setOpen] = useState(false);
@@ -96,8 +98,8 @@ export const McpListCombo = ({
     );
   };
 
-  const toggleActiveTool = () => {
-    appStoreMutate({ activeTool: !activeTool });
+  const handleToolChoiceChange = (value: string) => {
+    appStoreMutate({ toolChoice: value as "none" | "auto" | "manual" });
   };
 
   return (
@@ -120,24 +122,73 @@ export const McpListCombo = ({
                     <div className="bg-accent-foreground p-1.5 rounded-lg">
                       <MCPIcon className="size-4 fill-accent" />
                     </div>
-                    MCP Servers
+                    MCP Tools
                   </h4>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "text-xs",
-                        activeTool
-                          ? "text-foreground"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {activeTool ? "Active" : "Inactive"}
-                    </span>
-                    <Switch
-                      checked={activeTool}
-                      onCheckedChange={toggleActiveTool}
-                    />
-                  </div>
+                </div>
+                <div className="mt-4">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Tool Choice Mode
+                  </p>
+                  <RadioGroup
+                    value={toolChoice}
+                    onValueChange={handleToolChoiceChange}
+                    className="flex flex-row justify-between bg-muted rounded-lg p-1"
+                  >
+                    <div className="flex items-center space-x-2 rounded-md px-3 py-1.5 cursor-pointer hover:bg-secondary/50 transition-colors">
+                      <RadioGroupItem
+                        value="none"
+                        id="none"
+                        className="sr-only"
+                      />
+                      <Label
+                        htmlFor="none"
+                        className={cn(
+                          "text-sm font-medium cursor-pointer",
+                          toolChoice === "none"
+                            ? "text-foreground"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        None
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 rounded-md px-3 py-1.5 cursor-pointer hover:bg-secondary/50 transition-colors">
+                      <RadioGroupItem
+                        value="auto"
+                        id="auto"
+                        className="sr-only"
+                      />
+                      <Label
+                        htmlFor="auto"
+                        className={cn(
+                          "text-sm font-medium cursor-pointer",
+                          toolChoice === "auto"
+                            ? "text-foreground"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        Auto
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 rounded-md px-3 py-1.5 cursor-pointer hover:bg-secondary/50 transition-colors">
+                      <RadioGroupItem
+                        value="manual"
+                        id="manual"
+                        className="sr-only"
+                      />
+                      <Label
+                        htmlFor="manual"
+                        className={cn(
+                          "text-sm font-medium cursor-pointer",
+                          toolChoice === "manual"
+                            ? "text-foreground"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        Manual
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </div>
               </div>
 
@@ -165,7 +216,7 @@ export const McpListCombo = ({
                           <div className="mx-2">
                             {processingItems.includes(server.name) ? (
                               <div className="flex items-center gap-2">
-                                <Loader2 className="size-3.5 animate-spin" />
+                                <Loader className="size-3.5 animate-spin" />
                               </div>
                             ) : server.error ? (
                               <div className="flex items-center gap-1 text-destructive bg-card rounded-md px-2 py-1">
@@ -282,3 +333,7 @@ export const McpListCombo = ({
     </Popover>
   );
 };
+
+// For backward compatibility
+export const McpListCombo = McpToolChoiceSettings;
+export const McpToolsPanel = McpToolChoiceSettings;

@@ -1,16 +1,17 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { getMockUserSession } from "lib/mock";
-import type { ChatThread } from "app-types/chat";
-import type { User } from "app-types/user";
+import type { ChatThread, Project } from "app-types/chat";
+
 import { DEFAULT_MODEL } from "lib/ai/models";
 import { MCPServerInfo } from "app-types/mcp";
 export interface AppState {
   threadList: ChatThread[];
   mcpList: MCPServerInfo[];
+  projectList: Omit<Project, "instructions">[];
   currentThreadId: ChatThread["id"] | null;
-  user: User;
-  activeTool: boolean;
+  currentProjectId: Project["id"] | null;
+
+  toolChoice: "auto" | "none" | "manual";
   model: string;
 }
 
@@ -18,31 +19,24 @@ export interface AppDispatch {
   mutate: (state: Mutate<AppState>) => void;
 }
 
-export interface AppGetters {
-  getCurrentThread(): ChatThread | null;
-}
-export const appStore = create<AppState & AppDispatch & AppGetters>()(
+export const appStore = create<AppState & AppDispatch>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       threadList: [],
+      projectList: [],
       mcpList: [],
       currentThreadId: null,
-      user: getMockUserSession(),
-      activeTool: true,
+      currentProjectId: null,
+      toolChoice: "auto",
       modelList: [],
-
       model: DEFAULT_MODEL,
-      getCurrentThread: () =>
-        get().threadList.find(
-          (thread) => thread.id === get().currentThreadId,
-        ) || null,
       mutate: set,
     }),
     {
       name: "mc-app-store",
       partialize: (state) => ({
         model: state.model || DEFAULT_MODEL,
-        activeTool: state.activeTool,
+        toolChoice: state.toolChoice || "auto",
       }),
     },
   ),

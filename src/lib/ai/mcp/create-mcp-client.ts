@@ -80,6 +80,7 @@ export class MCPClient {
       if (isMaybeStdioConfig(this.serverConfig)) {
         const config = MCPStdioConfigZodSchema.parse(this.serverConfig);
         transport = new StdioClientTransport({
+          stderr: process.stderr,
           command: config.command,
           args: config.args,
           // Merge process.env with config.env, ensuring PATH is preserved and filtering out undefined values
@@ -108,7 +109,7 @@ export class MCPClient {
 
       await client.connect(transport);
       client.onerror = this.log.error;
-      this.log.debug(
+      this.log.info(
         `Connected to MCP server in ${((Date.now() - startedAt) / 1000).toFixed(2)}s`,
       );
       this.isConnected = true;
@@ -154,7 +155,7 @@ export class MCPClient {
   }
   async disconnect() {
     if (this.isConnected) {
-      this.log.debug("Disconnecting from MCP server");
+      this.log.info("Disconnecting from MCP server");
       await this.locker.wait();
       this.isConnected = false;
       const client = this.client;
@@ -163,7 +164,7 @@ export class MCPClient {
     }
   }
   async callTool(toolName: string, input?: unknown) {
-    return safe(() => this.log.debug("tool call", toolName))
+    return safe(() => this.log.info("tool call", toolName))
       .map(() =>
         this.client?.callTool({
           name: toolName,

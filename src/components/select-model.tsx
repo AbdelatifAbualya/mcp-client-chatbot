@@ -1,3 +1,5 @@
+"use client";
+
 import { Fragment, PropsWithChildren, useState } from "react";
 
 import {
@@ -27,12 +29,9 @@ export const SelectModel = (props: PropsWithChildren<SelectModelProps>) => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{props.children}</PopoverTrigger>
-      <PopoverContent
-        className="p-0 w-[280px] bg-background"
-        align={props.align || "start"}
-      >
+      <PopoverContent className="p-0 w-[280px]" align={props.align || "end"}>
         <Command
-          className="rounded-lg relative shadow-md  bg-background h-80"
+          className="rounded-lg relative shadow-md  h-80"
           value={props.model}
           onClick={(e) => e.stopPropagation()}
         >
@@ -65,7 +64,6 @@ export const SelectModel = (props: PropsWithChildren<SelectModelProps>) => {
               </Fragment>
             ))}
           </CommandList>
-          <div className="pointer-events-none absolute bottom-0 left-0 w-full h-1/5 bg-gradient-to-t from-background to-transparent"></div>
         </Command>
       </PopoverContent>
     </Popover>

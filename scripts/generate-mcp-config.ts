@@ -17,7 +17,7 @@ try {
     writeFileSync(MCP_CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2));
     console.log("✅ .mcp-config.json has been generated successfully");
   } else {
-    console.log("🟡 .mcp-config.json already exists");
+    console.log("✅ .mcp-config.json already exists");
   }
 } catch (error) {
   console.error("❌ Failed to generate .mcp-config.json:", error);

@@ -62,7 +62,7 @@ export const isJson = (value: any): value is Record<string, any> => {
       return true;
     }
     return false;
-  } catch (e) {
+  } catch (_e) {
     return false;
   }
 };
@@ -194,4 +194,41 @@ export function errorToString(error: unknown) {
   }
 
   return JSON.stringify(error);
+}
+
+export function objectFlow<T extends Record<string, any>>(obj: T) {
+  return {
+    map: <R>(
+      fn: (value: T[keyof T], key: keyof T) => R,
+    ): Record<keyof T, R> => {
+      return Object.fromEntries(
+        Object.entries(obj).map(([key, value]) => [key, fn(value, key)]),
+      ) as Record<keyof T, R>;
+    },
+    filter: (
+      fn: (value: T[keyof T], key: keyof T) => boolean,
+    ): Record<keyof T, T[keyof T]> => {
+      return Object.fromEntries(
+        Object.entries(obj).filter(([key, value]) => fn(value, key)),
+      ) as Record<keyof T, T[keyof T]>;
+    },
+
+    forEach: (fn: (value: T[keyof T], key: keyof T) => void): void => {
+      Object.entries(obj).forEach(([key, value]) => fn(value, key));
+    },
+    some: (fn: (value: T[keyof T], key: keyof T) => any): boolean => {
+      return Object.entries(obj).some(([key, value]) => fn(value, key));
+    },
+    every: (fn: (value: T[keyof T], key: keyof T) => any): boolean => {
+      return Object.entries(obj).every(([key, value]) => fn(value, key));
+    },
+    find(fn: (value: T[keyof T], key: keyof T) => any): T | undefined {
+      return Object.entries(obj).find(([key, value]) => fn(value, key))?.[1];
+    },
+  };
+}
+
+export function capitalizeFirstLetter(str: string): string {
+  if (!str || str.length === 0) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }

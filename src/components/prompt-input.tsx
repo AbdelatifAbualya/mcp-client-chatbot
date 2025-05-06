@@ -1,7 +1,6 @@
 "use client";
 
-import { cn } from "lib/utils";
-import { Check, CornerRightUp, Paperclip, Pause } from "lucide-react";
+import { ChevronDown, CornerRightUp, Paperclip, Pause } from "lucide-react";
 import { ReactNode, useMemo, useState } from "react";
 import { Button } from "ui/button";
 import { notImplementedToast } from "ui/shared-toast";
@@ -11,49 +10,50 @@ import { SelectModel } from "./select-model";
 import { appStore } from "@/app/store";
 import { useShallow } from "zustand/shallow";
 import { customModelProvider } from "lib/ai/models";
-
-import { McpListCombo } from "./mcp-list-combo";
 import { createMCPToolId } from "lib/ai/mcp/mcp-tool-id";
 import { ChatMessageAnnotation } from "app-types/chat";
 import dynamic from "next/dynamic";
+import { ToolChoiceDropDown } from "./tool-choice-dropdown";
+
+import { MCPServerBindingSelector } from "./mcp-server-binding";
+import { MCPServerBinding } from "app-types/mcp";
 
 interface PromptInputProps {
   placeholder?: string;
   setInput: (value: string) => void;
   input: string;
   onStop: () => void;
+  ownerType?: MCPServerBinding["ownerType"];
+  ownerId: string;
   append: UseChatHelpers["append"];
-  threadId: string;
+  isTemporaryChat?: boolean;
   isLoading?: boolean;
 }
 
 const MentionInput = dynamic(() => import("./mention-input"), {
   ssr: false,
   loading() {
-    return <div className="h-[4rem] w-full animate-pulse"></div>;
+    return <div className="h-[2rem] w-full animate-pulse"></div>;
   },
 });
 
 export default function PromptInput({
-  placeholder = "Type a message...",
-  threadId,
+  placeholder = "What do you want to know?",
   append,
   input,
   setInput,
   onStop,
   isLoading,
+  isTemporaryChat,
+  ownerType = "thread",
+  ownerId,
 }: PromptInputProps) {
-  const [appStoreMutate, model, activeTool, mcpList] = appStore(
-    useShallow((state) => [
-      state.mutate,
-      state.model,
-      state.activeTool,
-      state.mcpList,
-    ]),
+  const [appStoreMutate, model, mcpList] = appStore(
+    useShallow((state) => [state.mutate, state.model, state.mcpList]),
   );
 
   const [toolMentionItems, setToolMentionItems] = useState<
-    { id: string; label: ReactNode }[]
+    { id: string; label: ReactNode; [key: string]: any }[]
   >([]);
 
   const modelList = useMemo(() => {
@@ -63,21 +63,25 @@ export default function PromptInput({
   const [pastedContents, setPastedContents] = useState<string[]>([]);
 
   const toolList = useMemo(() => {
-    return mcpList
-      .filter((mcp) => mcp.status === "connected")
-      .flatMap((mcp) => [
-        {
-          id: mcp.name,
-          label: mcp.name,
-        },
-        ...mcp.toolInfo.map((tool) => {
-          const id = createMCPToolId(mcp.name, tool.name);
-          return {
-            id,
-            label: id,
-          };
-        }),
-      ]);
+    return (
+      mcpList
+        ?.filter((mcp) => mcp.status === "connected")
+        .flatMap((mcp) => [
+          {
+            id: mcp.name,
+            label: mcp.name,
+            type: "server",
+          },
+          ...mcp.toolInfo.map((tool) => {
+            const id = createMCPToolId(mcp.name, tool.name);
+            return {
+              id,
+              label: id,
+              type: "tool",
+            };
+          }),
+        ]) ?? []
+    );
   }, [mcpList]);
 
   const handlePaste = (e: React.ClipboardEvent) => {
@@ -85,8 +89,6 @@ export default function PromptInput({
     if (text.length > 500) {
       setPastedContents([...pastedContents, text]);
       e.preventDefault();
-    } else {
-      setInput(input + text);
     }
   };
 
@@ -100,11 +102,6 @@ export default function PromptInput({
 
     if (userMessage.length === 0 && pastedContentsParsed.length === 0) {
       return;
-    }
-
-    const chatPath = `/chat/${threadId}`;
-    if (window.location.pathname !== chatPath) {
-      window.history.replaceState({}, "", chatPath);
     }
 
     const annotations: ChatMessageAnnotation[] = [];
@@ -134,9 +131,9 @@ export default function PromptInput({
     <div className="max-w-3xl mx-auto fade-in animate-in">
       <div className="z-10 mx-auto w-full max-w-3xl relative">
         <fieldset className="flex w-full min-w-0 max-w-full flex-col px-2">
-          <div className="rounded-4xl backdrop-blur-sm transition-all duration-200 shadow-lg dark:bg-muted/20 bg-muted/40 border-dashed relative flex w-full flex-col cursor-text z-10 border border-muted items-stretch focus-within:border-muted-foreground hover:border-muted-foreground p-3">
+          <div className="rounded-4xl backdrop-blur-sm transition-all duration-200 bg-muted/40 relative flex w-full flex-col cursor-text z-10 border items-stretch focus-within:border-muted-foreground hover:border-muted-foreground p-3">
             <div className="flex flex-col gap-3.5 px-1">
-              <div className="relative min-h-[4rem]">
+              <div className="relative min-h-[2rem]">
                 <MentionInput
                   input={input}
                   onChange={setInput}
@@ -169,15 +166,24 @@ export default function PromptInput({
                   />
                 ))}
               </div>
-              <div className="flex w-full items-center z-30">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="cursor-pointer"
+              <div className="flex w-full items-center z-30 gap-1.5">
+                <div
+                  className="cursor-pointer text-muted-foreground border rounded-full p-2 bg-transparent hover:bg-muted transition-all duration-200"
                   onClick={notImplementedToast}
                 >
-                  <Paperclip />
-                </Button>
+                  <Paperclip className="size-4" />
+                </div>
+
+                <ToolChoiceDropDown />
+                {!isTemporaryChat && (
+                  <MCPServerBindingSelector
+                    ownerId={ownerId}
+                    ownerType={ownerType}
+                    align="start"
+                    side="top"
+                  />
+                )}
+                <div className="flex-1" />
 
                 <SelectModel
                   onSelect={(model) => {
@@ -186,24 +192,13 @@ export default function PromptInput({
                   providers={modelList}
                   model={model}
                 >
-                  <Button size={"sm"} variant={"ghost"}>
+                  <Button variant={"ghost"} className="rounded-full">
                     {model}
+                    <ChevronDown className="size-3" />
                   </Button>
                 </SelectModel>
-                <div className="flex-1" />
-                <McpListCombo>
-                  <Button
-                    variant={activeTool ? "secondary" : "ghost"}
-                    className={cn(
-                      !activeTool && "text-muted-foreground",
-                      "font-semibold mr-1 rounded-full",
-                    )}
-                  >
-                    {activeTool && <Check size={3.5} />}
-                    tools
-                  </Button>
-                </McpListCombo>
-                <Button
+
+                <div
                   onClick={() => {
                     if (isLoading) {
                       onStop();
@@ -211,14 +206,7 @@ export default function PromptInput({
                       submit();
                     }
                   }}
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    input.length > 0
-                      ? "text-foreground"
-                      : "text-muted-foreground",
-                    "cursor-pointer rounded-xl",
-                  )}
+                  className="cursor-pointer text-muted-foreground rounded-full p-2 bg-secondary hover:bg-accent-foreground hover:text-accent transition-all duration-200"
                 >
                   {isLoading ? (
                     <Pause
@@ -228,7 +216,7 @@ export default function PromptInput({
                   ) : (
                     <CornerRightUp size={16} />
                   )}
-                </Button>
+                </div>
               </div>
             </div>
           </div>

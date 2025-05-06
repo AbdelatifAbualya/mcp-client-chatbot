@@ -4,7 +4,7 @@ import { google } from "@ai-sdk/google";
 import { anthropic } from "@ai-sdk/anthropic";
 import { xai } from "@ai-sdk/xai";
 import { LanguageModel, wrapLanguageModel } from "ai";
-import { gemmaToolMiddleware } from "@ai-sdk-tool/parser"
+import { gemmaToolMiddleware } from "@ai-sdk-tool/parser";
 
 export const allModels = {
   openai: {
@@ -23,7 +23,7 @@ export const allModels = {
   },
   anthropic: {
     "claude-3-5-sonnet": anthropic("claude-3-5-sonnet-latest"),
-    "claude-3-7-sonnet": anthropic("claude-3-5-sonnet-latest"),
+    "claude-3-7-sonnet": anthropic("claude-3-7-sonnet-latest"),
   },
   xai: {
     "grok-2": xai("grok-2-1212"),
@@ -45,7 +45,7 @@ export const allModels = {
   },
 } as const;
 
-export const isToolCallUnsupported = (model: LanguageModel) => {
+export const isToolCallUnsupportedModel = (model: LanguageModel) => {
   return [
     allModels.openai["o4-mini"],
     allModels.google["gemini-2.0-thinking"],
@@ -67,7 +67,7 @@ export const customModelProvider = {
       models: Object.keys(allModels[provider]).map((name) => {
         return {
           name,
-          isToolCallUnsupported: isToolCallUnsupported(
+          isToolCallUnsupported: isToolCallUnsupportedModel(
             allModels[provider][name],
           ),
         };

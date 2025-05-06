@@ -41,7 +41,6 @@ const PurePre = ({
         </Button>
       </div>
       <div className="relative overflow-x-auto px-6 pb-6">{children}</div>
-      <div className="absolute top-0 right-0 h-full w-1/5 bg-gradient-to-r from-transparent to-background  pointer-events-none" />
     </pre>
   );
 };
@@ -103,7 +102,7 @@ export function PreBlock({ children }: { children: any }) {
     <div
       className={cn(
         loading && "animate-pulse",
-        "text-sm flex flex-col border border-dashed rounded-lg relative mb-4 overflow-hidden",
+        "text-sm flex bg-accent/30 flex-col rounded-2xl relative my-4 overflow-hidden border",
       )}
     >
       {component}

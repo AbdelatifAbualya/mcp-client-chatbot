@@ -22,7 +22,7 @@ export function AppSidebarMenus({ isOpen }: { isOpen: boolean }) {
                     <SidebarMenuButton
                       className={cn(
                         isOpen && "flex  justify-center ",
-                        "border border-dashed border-ring/80 font-semibold",
+                        "border border-ring/80 font-semibold border-dashed",
                       )}
                     >
                       <MessageCircleDashed />

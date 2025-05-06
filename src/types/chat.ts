@@ -1,10 +1,22 @@
-import type { UIMessage } from "ai";
+import type { UIMessage, Message } from "ai";
 
 export type ChatThread = {
   id: string;
   title: string;
   userId: string;
   createdAt: Date;
+  projectId: string | null;
+};
+
+export type Project = {
+  id: string;
+  name: string;
+  userId: string;
+  instructions: {
+    systemPrompt: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type ChatMessage = {
@@ -12,19 +24,25 @@ export type ChatMessage = {
   threadId: string;
   role: UIMessage["role"];
   parts: UIMessage["parts"];
-  attachments: unknown[];
+  annotations?: ChatMessageAnnotation[];
+  attachments?: unknown[];
   model: string | null;
   createdAt: Date;
 };
 
 export type ChatMessageAnnotation = {
   requiredTools?: string[];
+  usageTokens?: number;
+  [key: string]: any;
 };
 
+export type ToolInvocationUIPart = Extract<
+  Exclude<Message["parts"], undefined>[number],
+  { type: "tool-invocation" }
+>;
+
 export type ChatService = {
-  insertThread(
-    thread: PartialBy<ChatThread, "id" | "createdAt">,
-  ): Promise<ChatThread>;
+  insertThread(thread: Omit<ChatThread, "createdAt">): Promise<ChatThread>;
 
   selectThread(id: string): Promise<ChatThread | null>;
 
@@ -34,15 +52,38 @@ export type ChatService = {
 
   updateThread(
     id: string,
-    thread: PartialBy<ChatThread, "id" | "createdAt">,
+    thread: Partial<Omit<ChatThread, "id" | "createdAt">>,
   ): Promise<ChatThread>;
 
   deleteThread(id: string): Promise<void>;
 
-  insertMessage(
-    message: PartialBy<ChatMessage, "id" | "createdAt">,
-  ): Promise<ChatMessage>;
+  insertMessage(message: Omit<ChatMessage, "createdAt">): Promise<ChatMessage>;
+  upsertMessage(message: Omit<ChatMessage, "createdAt">): Promise<ChatMessage>;
 
   deleteMessagesByChatIdAfterTimestamp(messageId: string): Promise<void>;
+
+  deleteNonProjectThreads(userId: string): Promise<void>;
   deleteAllThreads(userId: string): Promise<void>;
+
+  insertProject(
+    project: Omit<Project, "id" | "createdAt" | "updatedAt">,
+  ): Promise<Project>;
+
+  selectProjectById(id: string): Promise<
+    | (Project & {
+        threads: ChatThread[];
+      })
+    | null
+  >;
+
+  selectProjectsByUserId(
+    userId: string,
+  ): Promise<Omit<Project, "instructions">[]>;
+
+  updateProject(
+    id: string,
+    project: Partial<Pick<Project, "name" | "instructions">>,
+  ): Promise<Project>;
+
+  deleteProject(id: string): Promise<void>;
 };

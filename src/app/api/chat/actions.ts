@@ -8,26 +8,33 @@ import {
   type Message,
 } from "ai";
 
-import { CREATE_THREAD_TITLE_PROMPT } from "lib/ai/prompts";
+import {
+  CREATE_THREAD_TITLE_PROMPT,
+  generateExampleToolSchemaPrompt,
+} from "lib/ai/prompts";
 
-import type { ChatThread } from "app-types/chat";
+import type { ChatThread, Project } from "app-types/chat";
 
-import { getMockUserSession } from "lib/mock";
-
-import { chatService } from "lib/db/chat-service";
+import { chatService, mcpService } from "lib/db/service";
 import { customModelProvider } from "lib/ai/models";
 import { toAny } from "lib/utils";
-import { MCPToolInfo } from "app-types/mcp";
+import {
+  MCPServerBinding,
+  MCPServerBindingConfig,
+  MCPToolInfo,
+} from "app-types/mcp";
+import { serverCache } from "lib/cache";
+import { CacheKeys } from "lib/cache/cache-keys";
+import { auth } from "../auth/auth";
 
-const {
-  deleteThread,
-  deleteMessagesByChatIdAfterTimestamp,
-  selectMessagesByThreadId,
-  selectThread,
-  selectThreadsByUserId,
-  updateThread,
-  deleteAllThreads,
-} = chatService;
+export async function getUserId() {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    throw new Error("User not found");
+  }
+  return userId;
+}
 
 export async function generateTitleFromUserMessageAction({
   message,
@@ -43,39 +50,41 @@ export async function generateTitleFromUserMessageAction({
 }
 
 export async function selectThreadWithMessagesAction(threadId: string) {
-  const thread = await selectThread(threadId);
+  const thread = await chatService.selectThread(threadId);
   if (!thread) {
     return null;
   }
-  const messages = await selectMessagesByThreadId(threadId);
+  const messages = await chatService.selectMessagesByThreadId(threadId);
   return { ...thread, messages: messages ?? [] };
 }
 
 export async function deleteThreadAction(threadId: string) {
-  await deleteThread(threadId);
+  await chatService.deleteThread(threadId);
 }
 
 export async function deleteMessagesByChatIdAfterTimestampAction(
   messageId: string,
 ) {
-  await deleteMessagesByChatIdAfterTimestamp(messageId);
+  await chatService.deleteMessagesByChatIdAfterTimestamp(messageId);
 }
 
 export async function selectThreadListByUserIdAction() {
-  const userId: string = getMockUserSession().id;
-  const threads = await selectThreadsByUserId(userId);
+  const userId = await getUserId();
+  const threads = await chatService.selectThreadsByUserId(userId);
   return threads;
 }
 
 export async function updateThreadAction(
-  thread: Omit<ChatThread, "createdAt" | "updatedAt" | "userId">,
+  id: string,
+  thread: Partial<Omit<ChatThread, "createdAt" | "updatedAt" | "userId">>,
 ) {
-  await updateThread(thread.id, { ...thread, userId: getMockUserSession().id });
+  const userId = await getUserId();
+  await chatService.updateThread(id, { ...thread, userId });
 }
 
-export async function deleteAllThreadsAction() {
-  const userId: string = getMockUserSession().id;
-  await deleteAllThreads(userId);
+export async function deleteThreadsAction() {
+  const userId = await getUserId();
+  await chatService.deleteAllThreads(userId);
 }
 
 export async function generateExampleToolSchemaAction(options: {
@@ -95,20 +104,141 @@ export async function generateExampleToolSchemaAction(options: {
   const { object } = await generateObject({
     model,
     schema,
-    prompt: `
-You are given a tool with the following details:
-- Tool Name: ${options.toolInfo.name}
-- Tool Description: ${options.toolInfo.description}
-
-${
-  options.prompt ||
-  `
-Step 1: Create a realistic example question or scenario that a user might ask to use this tool.
-Step 2: Based on that question, generate a valid JSON input object that matches the input schema of the tool.
-`.trim()
-}
-`.trim(),
+    prompt: generateExampleToolSchemaPrompt({
+      toolInfo: options.toolInfo,
+      prompt: options.prompt,
+    }),
   });
 
   return object;
+}
+
+export async function selectProjectListByUserIdAction() {
+  const userId = await getUserId();
+  const projects = await chatService.selectProjectsByUserId(userId);
+  return projects;
+}
+
+export async function insertProjectAction({
+  name,
+  instructions,
+}: {
+  name: string;
+  instructions?: Project["instructions"];
+}) {
+  const userId = await getUserId();
+  const project = await chatService.insertProject({
+    name,
+    userId,
+    instructions: instructions ?? {
+      systemPrompt: "",
+    },
+  });
+  return project;
+}
+
+export async function insertProjectWithThreadAction({
+  name,
+  instructions,
+  threadId,
+}: {
+  name: string;
+  instructions?: Project["instructions"];
+  threadId: string;
+}) {
+  const userId = await getUserId();
+  const project = await chatService.insertProject({
+    name,
+    userId,
+    instructions: instructions ?? {
+      systemPrompt: "",
+    },
+  });
+  await chatService.updateThread(threadId, {
+    projectId: project.id,
+  });
+  await serverCache.delete(CacheKeys.thread(threadId));
+  return project;
+}
+
+export async function selectProjectByIdAction(id: string) {
+  const project = await chatService.selectProjectById(id);
+  return project;
+}
+
+export async function updateProjectAction(
+  id: string,
+  project: Partial<Pick<Project, "name" | "instructions">>,
+) {
+  const updatedProject = await chatService.updateProject(id, project);
+  await serverCache.delete(CacheKeys.project(id));
+  return updatedProject;
+}
+
+export async function deleteProjectAction(id: string) {
+  await serverCache.delete(CacheKeys.project(id));
+  await chatService.deleteProject(id);
+}
+
+export async function rememberProjectInstructionsAction(
+  projectId: string,
+): Promise<Project["instructions"] | null> {
+  const key = CacheKeys.project(projectId);
+  const cachedProject = await serverCache.get<Project>(key);
+  if (cachedProject) {
+    return cachedProject.instructions;
+  }
+  const project = await chatService.selectProjectById(projectId);
+  if (!project) {
+    return null;
+  }
+  await serverCache.set(key, project);
+  return project.instructions;
+}
+
+export async function rememberThreadAction(threadId: string) {
+  const key = CacheKeys.thread(threadId);
+  const cachedThread = await serverCache.get<ChatThread>(key);
+  if (cachedThread) {
+    return cachedThread;
+  }
+  const thread = await chatService.selectThread(threadId);
+  if (!thread) {
+    return null;
+  }
+  await serverCache.set(key, thread);
+  return thread;
+}
+
+export async function rememberMcpBindingAction(
+  ownerId: string,
+  ownerType: MCPServerBinding["ownerType"],
+): Promise<MCPServerBindingConfig | null> {
+  if (!ownerId || !ownerType) {
+    return null;
+  }
+  const key = CacheKeys.mcpBinding(ownerId, ownerType);
+  const cachedMcpBinding = await serverCache.get<MCPServerBindingConfig>(key);
+  if (cachedMcpBinding) {
+    return cachedMcpBinding;
+  }
+  const mcpBinding = await mcpService.selectMcpServerBinding(
+    ownerId,
+    ownerType,
+  );
+  await serverCache.set(key, mcpBinding?.config);
+  return mcpBinding?.config ?? null;
+}
+
+export async function updateProjectNameAction(id: string, name: string) {
+  const updatedProject = await chatService.updateProject(id, { name });
+  await serverCache.delete(CacheKeys.project(id));
+  return updatedProject;
+}
+
+export async function saveMcpServerBindingsAction(entity: MCPServerBinding) {
+  await serverCache.delete(
+    CacheKeys.mcpBinding(entity.ownerId, entity.ownerType),
+  );
+  await mcpService.saveMcpServerBinding(entity);
 }

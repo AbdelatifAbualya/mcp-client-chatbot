@@ -5,3 +5,12 @@ type Mutate<T> = Partial<T> | ((prev: T) => Partial<T>);
 type Override<T, R> = Omit<T, keyof R> & R;
 
 type ValueOf<T> = T[keyof T];
+
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | JsonValue[]
+  | { [key: string]: JsonValue };

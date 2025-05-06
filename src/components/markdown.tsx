@@ -6,7 +6,7 @@ import { isJson, isString, toAny } from "lib/utils";
 import JsonView from "ui/json-view";
 
 const FadeIn = memo(({ children }: PropsWithChildren) => {
-  return <span className="fade-in animate-in duration-1000">{children}</span>;
+  return <span className="fade-in animate-in duration-1000">{children} </span>;
 });
 FadeIn.displayName = "FadeIn";
 
@@ -15,35 +15,40 @@ const WordByWordFadeIn = memo(({ children }: PropsWithChildren) => {
     .flat()
     .flatMap((child) => (isString(child) ? child.split(" ") : child));
   return childrens.map((word, index) =>
-    isString(word) ? <FadeIn key={index}>{word} </FadeIn> : word,
+    isString(word) ? <FadeIn key={index}>{word}</FadeIn> : word,
   );
 });
 WordByWordFadeIn.displayName = "WordByWordFadeIn";
 const components: Partial<Components> = {
   code: ({ children }) => {
     return (
-      <code className="text-sm rounded-md mx-1 text-blue-400">
-        <WordByWordFadeIn>`{children}`</WordByWordFadeIn>
+      <code className="text-sm rounded-md bg-accent py-1 px-2 mx-0.5">
+        {children}
       </code>
     );
   },
   blockquote: ({ children }) => {
     return (
-      <blockquote className="relative flex items-center border-accent-foreground/30 border border-dashed p-6 rounded-lg my-6 overflow-hidden">
-        <WordByWordFadeIn>{children}</WordByWordFadeIn>
-        <div className="absolute top-0 right-0 h-full w-1/3 bg-gradient-to-r from-transparent to-background  pointer-events-none" />
-      </blockquote>
+      <div className="px-4">
+        <blockquote className="relative bg-accent/30 p-6 rounded-2xl my-6 overflow-hidden border">
+          <WordByWordFadeIn>{children}</WordByWordFadeIn>
+        </blockquote>
+      </div>
     );
   },
   p: ({ children }) => {
     return (
-      <p className="leading-6 my-4">
+      <p className="leading-6 my-4 break-words">
         <WordByWordFadeIn>{children}</WordByWordFadeIn>
       </p>
     );
   },
   pre: ({ children }) => {
-    return <PreBlock>{children}</PreBlock>;
+    return (
+      <div className="px-4 py-2">
+        <PreBlock>{children}</PreBlock>
+      </div>
+    );
   },
   ol: ({ node, children, ...props }) => {
     return (

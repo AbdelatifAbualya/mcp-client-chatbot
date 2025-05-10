@@ -138,7 +138,7 @@ OPENAI_API_KEY=****
 # ANTHROPIC_API_KEY=****
 ```
 
-SQLite가 기본 DB(`db.sqlite`)입니다. PostgreSQL을 사용하려면 `.env`에서 `USE_FILE_SYSTEM_DB=false`로 설정하고 `DATABASE_URL`을 정의하세요.
+SQLite가 기본 DB(`db.sqlite`)입니다. PostgreSQL을 사용하려면 `.env`에서 `USE_FILE_SYSTEM_DB=false`로 설정하고 `POSTGRES_URL`을 정의하세요.
 
 -----
 

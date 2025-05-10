@@ -146,7 +146,7 @@ OPENAI_API_KEY=****
 # ANTHROPIC_API_KEY=****
 ```
 
-SQLite is the default DB (`db.sqlite`). To use PostgreSQL, set `USE_FILE_SYSTEM_DB=false` and define `DATABASE_URL` in `.env`.
+SQLite is the default DB (`db.sqlite`). To use PostgreSQL, set `USE_FILE_SYSTEM_DB=false` and define `POSTGRES_URL` in `.env`.
 
 -----
 
